@@ -1,0 +1,65 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: mysql-innodb-cluster-pv-0
+spec:
+  capacity:
+    storage: 10Gi
+  local:
+    path: /data/mysql-innodb-cluster-0
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  volumeMode: Filesystem
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cps-kernel-k8s-mysql-10-100-54-20
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: mysql-innodb-cluster-pv-1
+spec:
+  capacity:
+    storage: 10Gi
+  local:
+    path: /data/mysql-innodb-cluster-1
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  volumeMode: Filesystem
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cps-kernel-k8s-mysql-10-100-54-20
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: mysql-innodb-cluster-pv-2
+spec:
+  capacity:
+    storage: 10Gi
+  local:
+    path: /data/mysql-innodb-cluster-2
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  volumeMode: Filesystem
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cps-kernel-k8s-mysql-10-100-54-20

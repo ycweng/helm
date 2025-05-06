@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mysql-router
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.mysqlRouter.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-mysql-router
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-mysql-router
+    spec:
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- range $key, $value := .Values.nodeSelector }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Release.Name }}-mysql-router
+          image: 'container-registry.oracle.com/mysql/community-router:{{ default "8.0" .Values.mysqlVersion }}'
+          env:
+            - name: MYSQL_HOST
+              value: "{{ .Release.Name }}-mysql-0.{{ .Release.Name }}-headless.{{ .Release.Namespace }}.svc.cluster.local"   # 修改成你的 Primary Pod 名稱
+            - name: MYSQL_PORT
+              value: "{{ default "3306" .Values.innoDbCluster.mysql.port }}"
+            - name: MYSQL_USER
+              value: "{{ default "root" .Values.innoDbCluster.mysql.user }}"
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mysql-secret
+                  key: password         # 建議密碼存在 Secret
+            - name: MYSQL_INNODB_CLUSTER_MEMBERS
+              value: "{{ .Values.innoDbCluster.replicaCount }}"
+            - name: MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS
+              value: "--conf-use-sockets --conf-use-gr-notifications"
+          ports:
+            - name: router-port
+              containerPort: {{ default "6446" .Values.mysqlRouter.router.port }}   # Default MySQL Router TCP Routing Port

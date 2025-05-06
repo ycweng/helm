@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-router
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-router
+  template:
+    metadata:
+      labels:
+        app: mysql-router
+    spec:
+      containers:
+        - name: mysql-router
+          image: container-registry.oracle.com/mysql/community-router:8.0
+          env:
+            - name: MYSQL_HOST
+              value: "mysql-0.mysql-headless.mysql-test"   # 修改成你的 Primary Pod 名稱
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: "root"                     # 建議是有權限進行 bootstrapping 的用戶
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password         # 建議密碼存在 Secret
+            - name: MYSQL_INNODB_CLUSTER_MEMBERS
+              value: "3"
+            - name: MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS
+              value: "--conf-use-sockets --conf-use-gr-notifications"
+          ports:
+          - name: router-port
+            containerPort: 6446   # Default MySQL Router TCP Routing Port

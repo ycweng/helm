@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-mysql-innodb-cluster
+  labels:
+    app: {{ .Release.Name }}-mysql-innodb-cluster
+spec:
+  replicas: {{ .Values.innoDbCluster.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-mysql-innodb-cluster
+  serviceName: {{ .Release.Name }}-mysql-innodb-headless
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-mysql-innodb-cluster
+    spec:
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- range $key, $value := .Values.nodeSelector }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: config-generator
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              INDEX=$(echo $POD_NAME | awk -F'-' '{print $NF}')
+              HOST_PREFIX=$(echo $POD_NAME | sed "s/-$INDEX//")
+              echo $HOST_PREFIX
+              SEEDS=""
+              for i in $(seq 0 2); do
+                SEEDS="${SEEDS}${SEEDS:+,}${HOST_PREFIX}-${i}.${SVC_NAME}.${NAMESPACE}.svc.cluster.local:33061"
+              done
+              echo $SEEDS
+              cat <<EOF > /mnt/config/seeds.cnf
+              [mysqld]
+              report_host="${POD_NAME}.${SVC_NAME}.${NAMESPACE}.svc.cluster.local"
+              lower_case_table_names=0
+              server_id=$((100 + ${INDEX}))
+              gtid_mode=on
+              enforce_gtid_consistency=on
+              #mysql_native_password=ON
+              authentication_policy=mysql_native_password
+              loose_group_replication_local_address="${POD_NAME}.${SVC_NAME}.${NAMESPACE}.svc.cluster.local:33061"
+              loose_group_replication_group_name="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+              loose_group_replication_group_seeds="${SEEDS}"
+              loose_group_replication_start_on_boot=off
+              loose_group_replication_single_primary_mode=on
+              loose_group_replication_enforce_update_everywhere_checks=off
+              EOF
+          volumeMounts:
+              - name: config-volume
+                mountPath: /mnt/config
+          env:
+            - name: SVC_NAME
+              value: {{ .Release.Name }}-mysql-innodb-headless
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MYSQL_ROOT_PASSWORD
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          env:
+            - name: SVC_NAME
+              value: {{ .Release.Name }}-mysql-innodb-headless
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mysql-secret
+                  key: password
+            - name: MYSQL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mysql-secret
+                  key: admin-password
+            - name: MYSQL_ROOT_HOST
+              value: '%'
+          ports:
+            - name: mysql
+              containerPort: {{ .Values.innoDbCluster.mysql.port }}
+            - name: mysqlx
+              containerPort: 33060
+            - name: xcom
+              containerPort: 33061
+          resources:
+            limits:
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+              memory: "1Gi"
+            requests:
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+              memory: "1Gi"
+          volumeMounts:
+            - name:  {{ .Release.Name }}-mysql-pvc
+              mountPath: /var/lib/mysql
+              subPath: mysql
+            - name: config-volume
+              mountPath: /etc/mysql/conf.d
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - "-c"
+                - |
+                  mysql -h127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD -e'SELECT 1'
+            initialDelaySeconds: 30
+            periodSeconds: 2
+            timeoutSeconds: 1
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - "-c"
+                - |
+                  mysqladmin -uroot -p$MYSQL_ROOT_PASSWORD ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: config-volume
+          emptyDir: { }
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+
+  volumeClaimTemplates:
+    - metadata:
+        name:  {{ .Release.Name }}-mysql-pvc
+        labels:
+          app:  {{ .Release.Name }}-mysql-pvc
+      spec:
+        storageClassName: {{ .Values.storage.storageClassName }}
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.storage.request }}

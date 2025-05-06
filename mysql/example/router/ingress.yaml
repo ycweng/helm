@@ -1,0 +1,16 @@
+#---
+#apiVersion: networking.k8s.io/v1
+#kind: Ingress
+#metadata:
+#  name: ingress-mysql-router
+#spec:
+#  rules:
+#    - http:
+#        paths:
+#          - path: /
+#            pathType: Prefix
+#            backend:
+#              service:
+#                name: mysql-router
+#                port:
+#                  number: 6446

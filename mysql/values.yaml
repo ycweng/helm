@@ -1,0 +1,29 @@
+mysqlVersion: 8.0
+
+innoDbCluster:
+  replicaCount: 3
+  mysql:
+    port: 3306
+    user: root
+mysqlRouter:
+  replicaCount: 1
+  router:
+    port: 6446
+  service:
+    type: ClusterIP
+storage:
+  storageClassName: local-storage
+  request: 10Gi
+secret: #base64
+  password: Y3BzMm8yb2Nwcw== # cps2o2ocps
+  adminPassword: Y3BzMm8yb2Nwcw==
+
+
+nodeSelector:
+  server-type: mysql
+tolerations:
+  - key: "server-type"
+    operator: "Equal"
+    value: "mysql"
+    effect: "NoSchedule"
+
