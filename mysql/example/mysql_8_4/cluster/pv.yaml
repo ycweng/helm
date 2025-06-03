@@ -1,12 +1,12 @@
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: rdf-mysql-innodb-cluster-pv-0
+  name: mysql-8-4-innodb-cluster-pv-0
 spec:
   capacity:
     storage: 10Gi
   local:
-    path: /data/rdf-mysql-0
+    path: /data/mysql_8_4-0
   accessModes:
     - ReadWriteOnce
   storageClassName: local-storage
@@ -23,12 +23,12 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: rdf-mysql-innodb-cluster-pv-1
+  name: mysql-8-4-innodb-cluster-pv-1
 spec:
   capacity:
     storage: 10Gi
   local:
-    path: /data/rdf-mysql-1
+    path: /data/mysql_8_4-1
   accessModes:
     - ReadWriteOnce
   storageClassName: local-storage
@@ -45,12 +45,12 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: rdf-mysql-innodb-cluster-pv-2
+  name: mysql-8-4-innodb-cluster-pv-2
 spec:
   capacity:
     storage: 10Gi
   local:
-    path: /data/rdf-mysql-2
+    path: /data/mysql_8_4-2
   accessModes:
     - ReadWriteOnce
   storageClassName: local-storage

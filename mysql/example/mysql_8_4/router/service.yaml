@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-8-4-router
+spec:
+  ports:
+    - name: router-port
+      port: 6446
+  selector:
+    app: mysql-8-4-router

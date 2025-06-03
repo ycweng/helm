@@ -1,0 +1,41 @@
+volumes:
+        - name: config-volume
+          configMap:
+            name: mysql-router-config
+            defaultMode: 420
+      containers:
+        - name: mysql-router
+          image: container-registry.oracle.com/mysql/community-router:8.0
+          ports:
+            - name: router-port
+              containerPort: 6446
+              protocol: TCP
+          env:
+            - name: MYSQL_HOST
+              value: mysql-0.mysql-headless.mysql-test.svc.cluster.local
+            - name: MYSQL_PORT
+              value: '3306'
+            - name: MYSQL_USER
+              value: root
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: MYSQL_INNODB_CLUSTER_MEMBERS
+              value: '3'
+            - name: MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS
+              value: '--conf-use-sockets --conf-use-gr-notifications'
+          resources: {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/mysqlrouter/mysqlrouter.conf
+              subPath: mysqlrouter.conf
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler

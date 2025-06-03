@@ -1,11 +1,13 @@
-mysqlVersion: 8.0
+mysqlVersion: '8.4'
 
 innoDbCluster:
+  image: '10.100.54.11:32767/kernel/mysql-community-server:8.4-cps'
   replicaCount: 3
   mysql:
     port: 3306
     user: root
 mysqlRouter:
+  image: '10.100.54.11:32767/kernel/mysql-community-router:8.4-cps'
   replicaCount: 1
   router:
     port: 6446

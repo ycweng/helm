@@ -1,32 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql-router
+  name: mysql-8-4-router
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mysql-router
+      app: mysql-8-4-router
   template:
     metadata:
       labels:
-        app: mysql-router
+        app: mysql-8-4-router
     spec:
       volumes:
         - name: config-volume
           configMap:
-            name: rdf-mysql-router-config
+            name: mysql-8-4-router-config
             defaultMode: 420
       containers:
         - name: mysql-router
-          image: container-registry.oracle.com/mysql/community-router:8.0
+          image: 10.100.54.11:32767/kernel/mysql-community-router:8.4-cps
           volumeMounts:
             - name: config-volume
               mountPath: /etc/mysqlrouter/mysqlrouter.conf
               subPath: mysqlrouter.conf
           env:
+            - name: TZ
+              value: "UTC+8"
             - name: MYSQL_HOST
-              value: "mysql-0.mysql-headless.mysql-test"   # 修改成你的 Primary Pod 名稱
+              value: "mysql-8-4-0.mysql-8-4-headless.mysql-test.svc.cluster.local"   # 修改成你的 Primary Pod 名稱
             - name: MYSQL_PORT
               value: "3306"
             - name: MYSQL_USER

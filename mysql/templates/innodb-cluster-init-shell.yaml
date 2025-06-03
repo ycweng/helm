@@ -1,0 +1,51 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-mysql-init-shell
+data:
+  initcnf.sh: |
+    INDEX=$(echo $POD_NAME | awk -F'-' '{print $NF}')
+    HOST_PREFIX=$(echo $POD_NAME | sed "s/-$INDEX//")
+    echo $HOST_PREFIX
+    SEEDS=""
+    for i in $(seq 0 2); do
+      SEEDS="${SEEDS}${SEEDS:+,}${HOST_PREFIX}-${i}.${SVC_NAME}.${NAMESPACE}.svc.cluster.local:33061"
+    done
+    echo $SEEDS
+    cat /etc/my.cnf
+    cat <<EOF > /etc/my.cnf.d/seed.cnf
+    [mysqld]
+    server_id=$((100 + ${INDEX}))
+    log-bin=/mysql/binlog/mybin
+    relay-log=/mysql/relaylog/relay-log
+
+    log-slave-updates=on
+    binlog-checksum=NONE
+    binlog_expire_logs_seconds=604800
+
+    enforce_gtid_consistency=on
+    gtid_mode=on
+    slave-parallel-workers=8
+    slave_preserve_commit_order=on
+    plugin-dir= /usr/lib64/mysql/plugin
+    plugin_load_add='group_replication.so'
+
+    loose_group_replication_start_on_boot=off
+    loose_group_replication_bootstrap_group=off
+    loose_group_replication_single_primary_mode=on
+    loose_group_replication_local_address="${POD_NAME}.${SVC_NAME}.${NAMESPACE}.svc.cluster.local:33061"
+    loose_group_replication_group_name="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    loose_group_replication_group_seeds="${SEEDS}"
+    loose_group_replication_enforce_update_everywhere_checks=off
+
+    report_host="${POD_NAME}.${SVC_NAME}.${NAMESPACE}.svc.cluster.local"
+    lower_case_table_names=0
+    max_connections=10000
+    mysql_native_password=ON
+    authentication_policy=mysql_native_password
+
+    EOF
+
+    cat /etc/my.cnf.d/seed.cnf
+    cp -r /etc/my.cnf.d/seed.cnf /etc/my.cnf

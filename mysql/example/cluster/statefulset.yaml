@@ -35,19 +35,20 @@ spec:
               echo $HOST_PREFIX
               SEEDS=""
               for i in $(seq 0 2); do
-                SEEDS="${SEEDS}${SEEDS:+,}${HOST_PREFIX}-${i}.mysql-headless.mysql-test:33061"
+                SEEDS="${SEEDS}${SEEDS:+,}${HOST_PREFIX}-${i}.mysql-headless.mysql-test.svc.cluster.local:33061"
               done
               echo $SEEDS
               cat <<EOF > /mnt/config/seeds.cnf
               [mysqld]
-              report_host="${POD_NAME}.mysql-headless.mysql-test"
+              report_host="${POD_NAME}.mysql-headless.mysql-test.svc.cluster.local"
               lower_case_table_names=0
+              max_connections=10000
               server_id=$((100 + ${INDEX}))
               gtid_mode=on
               enforce_gtid_consistency=on
               #mysql_native_password=ON
               authentication_policy=mysql_native_password
-              loose_group_replication_local_address="${POD_NAME}.mysql-headless.mysql-test:33061"
+              loose_group_replication_local_address="${POD_NAME}.mysql-headless.mysql-test.svc.cluster.local:33061"
               loose_group_replication_group_name="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
               loose_group_replication_group_seeds="${SEEDS}"
               loose_group_replication_start_on_boot=off

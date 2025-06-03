@@ -25,10 +25,10 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Release.Name }}-mysql-router
-          image: 'container-registry.oracle.com/mysql/community-router:{{ default "8.0" .Values.mysqlVersion }}'
+          image: {{ .Values.mysqlRouter.image }}
           env:
             - name: MYSQL_HOST
-              value: "{{ .Release.Name }}-mysql-0.{{ .Release.Name }}-headless.{{ .Release.Namespace }}.svc.cluster.local"   # 修改成你的 Primary Pod 名稱
+              value: "{{ .Release.Name }}-mysql-innodb-cluster-0.{{ .Release.Name }}-mysql-innodb-headless.{{ .Release.Namespace }}.svc.cluster.local"   # 修改成你的 Primary Pod 名稱
             - name: MYSQL_PORT
               value: "{{ default "3306" .Values.innoDbCluster.mysql.port }}"
             - name: MYSQL_USER

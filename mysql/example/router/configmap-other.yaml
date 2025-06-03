@@ -1,0 +1,95 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rdf-mysql-router-config
+  namespace: mysql-test
+data:
+  mysqlrouter.conf: |
+    [DEFAULT]
+    logging_folder=/tmp/mysqlrouter/log
+    runtime_folder=/tmp/mysqlrouter/run
+    data_folder=/tmp/mysqlrouter/data
+    keyring_path=/tmp/mysqlrouter/data/keyring
+    master_key_path=/tmp/mysqlrouter/mysqlrouter.key
+    connect_timeout=5
+    read_timeout=30
+    dynamic_state=/tmp/mysqlrouter/data/state.json
+    client_ssl_cert=/tmp/mysqlrouter/data/router-cert.pem
+    client_ssl_key=/tmp/mysqlrouter/data/router-key.pem
+    client_ssl_mode=PREFERRED
+    server_ssl_mode=AS_CLIENT
+    server_ssl_verify=DISABLED
+    unknown_config_option=error
+    max_total_connections = 10000
+    
+    [logger]
+    level = INFO
+    [metadata_cache:bootstrap]
+    cluster_type=gr
+    router_id=8
+    user=mysql_router8_nxcffax
+    metadata_cluster=mycluster
+    ttl=60
+    auth_cache_ttl=-1
+    auth_cache_refresh_interval=60
+    use_gr_notifications=1
+    
+    # If no plugin is configured which starts a service, keepalive
+    # will make sure MySQL Router will not immediately exit. It is
+    # safe to remove once Router is configured.
+    [keepalive]
+    interval = 60
+    
+    [routing:bootstrap_rw] 
+    max_connections = 10000
+    bind_address=0.0.0.0
+    bind_port=6446
+    socket=/tmp/mysqlrouter/mysql.sock
+    destinations=metadata-cache://mycluster/?role=PRIMARY
+    routing_strategy=first-available
+    protocol=classic
+    
+    [routing:bootstrap_ro]
+    max_connections = 10000
+    bind_address=0.0.0.0
+    bind_port=6447
+    socket=/tmp/mysqlrouter/mysqlro.sock
+    destinations=metadata-cache://mycluster/?role=SECONDARY
+    routing_strategy=round-robin-with-fallback
+    protocol=classic
+    
+    [routing:bootstrap_x_rw]
+    max_connections = 10000
+    bind_address=0.0.0.0
+    bind_port=6448
+    socket=/tmp/mysqlrouter/mysqlx.sock
+    destinations=metadata-cache://mycluster/?role=PRIMARY
+    routing_strategy=first-available
+    protocol=x
+
+    [routing:bootstrap_x_ro]
+    max_connections = 10000
+    bind_address=0.0.0.0
+    bind_port=6449
+    socket=/tmp/mysqlrouter/mysqlxro.sock
+    destinations=metadata-cache://mycluster/?role=SECONDARY
+    routing_strategy=round-robin-with-fallback
+    protocol=x
+    
+    
+    [http_server]
+    port=8081
+    
+    [rest_api]
+
+    [rest_router]
+    require_realm=default_auth_realm
+    
+    [http_auth_realm:default_auth_realm]
+    backend=default_auth_backend
+    method=basic
+    name=default_realm
+
+    [http_auth_backend:default_auth_backend]
+    backend=file
+    filename=/etc/mysqlrouter/mysqlrouter.pwd

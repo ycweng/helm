@@ -1,0 +1,49 @@
+volumes:
+        - name: config-volume
+          configMap:
+            name: mysql-router-config
+            defaultMode: 420
+      containers:
+        - name: rdf-mysql-router
+          image: 10.100.54.11:32767/kernel/mysql-community-router:modified-8.0
+          ports:
+            - name: router-port
+              containerPort: 6446
+              protocol: TCP
+          env:
+            - name: MYSQL_HOST
+              value: >-
+                rdf-mysql-innodb-cluster-0.rdf-mysql-innodb-headless.mysql-test.svc.cluster.local
+            - name: MYSQL_PORT
+              value: '3306'
+            - name: MYSQL_USER
+              value: root
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rdf-mysql-secret
+                  key: password
+            - name: MYSQL_INNODB_CLUSTER_MEMBERS
+              value: '3'
+            - name: MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS
+              value: '--conf-use-sockets --conf-use-gr-notifications'
+          resources: {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/mysqlrouter/mysqlrouter.conf
+              subPath: mysqlrouter.conf
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        server-type: mysql
+      securityContext: {}
+      schedulerName: default-scheduler
+      tolerations:
+        - key: server-type
+          operator: Equal
+          value: mysql
+          effect: NoSchedule

@@ -1,0 +1,171 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: mysql-test
+  name: mysql-8-4
+  labels:
+    app: mysql-8-4
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mysql-8-4
+  serviceName: mysql-8-4-headless
+  template:
+    metadata:
+      labels:
+        app: mysql-8-4
+    spec:
+      nodeSelector:
+        server-type: mysql
+      tolerations:
+        - key: "server-type"
+          operator: "Equal"
+          value: "mysql"
+          effect: "NoSchedule"
+#      initContainers:
+#        - name: config-generator
+#          image: busybox
+#          command:
+#            - sh
+#            - -c
+#            - |
+#              INDEX=$(echo $POD_NAME | awk -F'-' '{print $NF}')
+#              HOST_PREFIX=$(echo $POD_NAME | sed "s/-$INDEX//")
+#              echo $HOST_PREFIX
+#              SEEDS=""
+#              for i in $(seq 0 2); do
+#                SEEDS="${SEEDS}${SEEDS:+,}${HOST_PREFIX}-${i}.mysql-8-4-headless.mysql-test.svc.cluster.local:33061"
+#              done
+#              echo $SEEDS
+#              cat <<EOF > /mnt/config/seeds.cnf
+#              [mysqld]
+#              server_id=$((100 + ${INDEX}))
+#              log-bin=/mysql/binlog/mybin
+#              relay-log=/mysql/relaylog/relay-log
+#
+#              log-slave-updates=on
+#              binlog-checksum=NONE
+#              binlog_expire_logs_seconds=604800
+#
+#              enforce_gtid_consistency=on
+#              gtid_mode=on
+#              slave-parallel-workers=8
+#              slave_preserve_commit_order=on
+#              plugin-dir= /usr/lib64/mysql/plugin
+#              plugin_load_add='group_replication.so'
+#
+#              loose_group_replication_start_on_boot=off
+#              loose_group_replication_bootstrap_group=off
+#              loose_group_replication_single_primary_mode=on
+#              loose_group_replication_local_address="${POD_NAME}.mysql-8-4-headless.mysql-test.svc.cluster.local:33061"
+#              loose_group_replication_group_name="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+#              loose_group_replication_group_seeds="${SEEDS}"
+#              loose_group_replication_enforce_update_everywhere_checks=off
+#
+#              report_host="${POD_NAME}.mysql-8-4-headless.mysql-test.svc.cluster.local"
+#              lower_case_table_names=0
+#              max_connections=10000
+#              mysql_native_password=ON
+#              authentication_policy=mysql_native_password
+#
+#              EOF
+#          volumeMounts:
+#              - name: config-volume
+#                mountPath: /mnt/config
+#          env:
+#            - name: POD_NAME
+#              valueFrom:
+#                fieldRef:
+#                  fieldPath: metadata.name
+      containers:
+        - name: mysql
+          image: 10.100.54.11:32767/kernel/mysql-community-server:8.4-cps
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MYSQL_HOME
+              value: /etc/mysql/conf.d/seeds.cnf
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: MYSQL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: admin-password
+            - name: MYSQL_ROOT_HOST
+              value: '%'
+          ports:
+            - name: mysql
+              containerPort: 3306
+            - name: mysqlx
+              containerPort: 33060
+            - name: xcom
+              containerPort: 33061
+          resources:
+            limits:
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+              memory: "1Gi"
+            requests:
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+              memory: "1Gi"
+          volumeMounts:
+            - name: mysql-8-4-innodb-cluster
+              mountPath: /var/lib/mysql
+              subPath: mysql
+            - name: config-volume
+              mountPath: /etc/mysql/conf.d
+            - name: init-shell
+              mountPath: /docker-entrypoint-initdb.d/
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - "-c"
+                - |
+                  mysql -h127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD -e'SELECT 1'
+            initialDelaySeconds: 30
+            periodSeconds: 2
+            timeoutSeconds: 1
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - "-c"
+                - |
+                  mysqladmin -uroot -p$MYSQL_ROOT_PASSWORD ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: config-volume
+          emptyDir: { }
+        - name: init-shell
+          configMap:
+            name: mysql-8-4-cluster-init-shell
+            defaultMode: 420
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-8-4-innodb-cluster
+        labels:
+          app: mysql-8-4-innodb-cluster
+      spec:
+        storageClassName: local-storage
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
